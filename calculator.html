@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <link rel="stylesheet" href="calculator.css">
+</head>
+
+<body>
+    <div class="calculator">
+        <input type="text" id="display" value="0" readonly>
+
+    <div class="buttons">
+      <button class="gray">mc</button>
+      <button class="gray">mr</button>
+      <button class="gray">m-</button>
+      <button class="gray">m+</button>
+
+        <button class="gray">AC</button>
+        <button class="gray">√x</button>
+        <button class="gray">%</button>
+        <button class="yellow">÷</button>
+
+        <button>7</button>
+        <button>8</button>
+        <button>9</button>
+        <button class="yellow">×</button>
+
+        <button>4</button>
+        <button>5</button>
+        <button>6</button>
+        <button class="yellow">-</button>
+
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+        <button class="yellow">+</button>
+
+        <button>0</button>
+        <button>.</button>
+        <button>+/-</button>
+        <button class="yellow">=</button>
+
+        <button class="gray">π</button>
+        <button class="gray">xʸ</button>
+        <button class="gray">R2</button>
+        <button class="gray">R0</button>
+    </div>
+</div>
+<script>
+const display = document.getElementById("display");
+const buttons = document.querySelectorAll("button");
+
+// --- STATE VARIABLES ---
+let currentValue = "";
+let expression = "";
+let memory = 0;
+let lastKey = "";
+// Variables for the "repeat equals" feature
+let lastNumber = "";
+let justCalculated = false;
+
+// --- EVENT LISTENERS ---
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => handleInput(btn.textContent));
+});
+
+// --- CORE LOGIC ---
+function handleInput(value) {
+  // For any input that ISN'T '=', we reset the 'justCalculated' flag.
+  if (value !== '=') {
+    justCalculated = false;
+  }
+
+  // Clear all
+  if (value === "AC") {
+    display.value = "0";
+    currentValue = "";
+    expression = "";
+    lastKey = "";
+    lastNumber = "";
+    return;
+  }
+
+  // Memory operations
+  if (value === "mc") { memory = 0; return; }
+  if (value === "mr") { 
+    display.value = memory.toString(); 
+    currentValue = display.value; 
+    return; 
+  }
+  if (value === "m+") { memory += parseFloat(display.value) || 0; return; }
+  if (value === "m-") { memory -= parseFloat(display.value) || 0; return; }
+
+  // Unary/Special operations
+  if (value === "√x") {
+    currentValue = Math.sqrt(parseFloat(currentValue || display.value)).toString();
+    display.value = currentValue;
+    return;
+  }
+  if (value === "xʸ") {
+    expression += currentValue + "**";
+    currentValue = "";
+    display.value = "0";
+    return;
+  }
+  if (value === "π") {
+    currentValue = Math.PI.toString();
+    display.value = currentValue;
+    return;
+  }
+  if (value === "%") {
+    currentValue = (parseFloat(currentValue || display.value) / 100).toString();
+    display.value = currentValue;
+    return;
+  }
+  if (value === "+/-") {
+    currentValue = (-parseFloat(currentValue || display.value)).toString();
+    display.value = currentValue;
+    return;
+  }
+  if (value === "R2") {
+    currentValue = (Math.round(parseFloat(currentValue || display.value) * 100) / 100).toString();
+    display.value = currentValue;
+    return;
+  }
+  if (value === "R0") {
+    currentValue = Math.round(parseFloat(currentValue || display.value)).toString();
+    display.value = currentValue;
+    return;
+  }
+
+  // Operators
+  if (["+", "-", "×", "÷"].includes(value)) {
+    if (currentValue !== "") {
+        expression += currentValue;
+    }
+    // Avoid adding multiple operators in a row
+    if (["+", "-", "*", "/"].includes(expression.slice(-1))) {
+        expression = expression.slice(0, -1);
+    }
+    
+    if (value === "×") expression += "*";
+    else if (value === "÷") expression += "/";
+    else expression += value;
+
+    currentValue = "";
+    lastKey = value;
+    return;
+  }
+
+  // Equals
+  if (value === "=") {
+    // If '=' was the last key, perform the special addition
+    if (justCalculated && lastNumber !== "") {
+      try {
+        let result = eval(`${display.value} + ${lastNumber}`);
+        if (!isFinite(result)) result = "Error";
+        display.value = result.toString();
+        currentValue = result.toString();
+      } catch {
+        display.value = "Error";
+        expression = "";
+        currentValue = "";
+      }
+    } else {
+      // First time '=' is pressed
+      if (currentValue !== "") {
+        expression += currentValue;
+        lastNumber = currentValue; // Store the last number
+      }
+      try {
+        let result = eval(expression);
+        if (!isFinite(result)) result = "Error";
+        display.value = result.toString();
+        currentValue = result.toString();
+        expression = ""; // Reset for new calculation
+        justCalculated = true; // Set the flag
+      } catch {
+        display.value = "Error";
+        expression = "";
+        currentValue = "";
+      }
+    }
+    lastKey = value;
+    return;
+  }
+
+ // Number or decimal input
+if (!isNaN(value) || value === ".") {
+    // If the last action was '=', start a fresh calculation
+    if (lastKey === "=") {
+        // Special case: If starting with '.', set to "0."
+        if (value === ".") {
+            currentValue = "0.";
+        } else {
+            currentValue = value;
+        }
+        expression = "";
+    } else {
+        // --- MODIFIED LOGIC HERE ---
+        // If currentValue is empty (display is "0") and the input is ".",
+        // set currentValue to "0." to start.
+        if (currentValue === "" && value === ".") {
+            currentValue = "0.";
+        } 
+        // Prevent multiple decimals in one number
+        else if (value === "." && currentValue.includes(".")) {
+            return;
+        } 
+        // Normal number append
+        else {
+            currentValue += value;
+        }
+    }
+    
+    // Safety check: if the display is still "0" and we are typing a number, replace "0"
+    if (display.value === "0" && currentValue !== "0" && currentValue.length === 1 && value !== ".") {
+        display.value = currentValue;
+    } else {
+        display.value = currentValue;
+    }
+
+    lastKey = value;
+}
+}
+</script>
